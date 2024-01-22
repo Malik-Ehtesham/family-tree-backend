@@ -8,7 +8,7 @@
   },
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "NODE_ENV=production && PORT=5000 && node index.js",
+    "start": "NODE_ENV=production && node index.js",
     "start:prod": "NODE_ENV=production nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
