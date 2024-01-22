@@ -169,7 +169,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
 
   // RESETURL http://localhost:5173/forgotPassword
 
-  const resetURL = `${req.protocol}://localhost:5173/resetPassword/${resetToken}`;
+  const resetURL = `${req.protocol}://family-tree-frontend-self.vercel.app/resetPassword/${resetToken}`;
 
   const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL} .\nIf you didn't forget your password, please ignore this email!`;
 
