@@ -410,6 +410,22 @@ exports.createChild = catchAsync(async (req, res, next) => {
 
 // Assuming you have already configured Cloudinary as mentioned earlier
 
+// exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
+//   const memberId = req.params.id;
+
+//   // Find and delete the member
+//   const deletedMember = await Member.findOneAndDelete({ id: memberId });
+
+//   if (!deletedMember) {
+//     return res.status(404).json({ message: "Member not found" });
+//   }
+
+//   // Delete all other members with the member's id in their mid or fid field
+//   await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
+
+//   res.json({ message: "Member and related members deleted successfully" });
+// });
+
 exports.updateMember = catchAsync(async (req, res, next) => {
   const { id } = req.params;
   const { name, gender, dob, dod } = req.body;
@@ -446,33 +462,32 @@ exports.updateMember = catchAsync(async (req, res, next) => {
     return res.status(404).json({ message: "Member not found" });
   }
 
-  // Update the member with the new fields, including the image if provided
-  memberToUpdate.name = name;
-  memberToUpdate.gender = gender;
-  memberToUpdate.img = imageUrl || memberToUpdate.img; // Use existing image if no new image
-  memberToUpdate.dob = dob;
-  memberToUpdate.dod = dod;
+  // Update the member with the new fields, handling null values for dod
+  if (name !== undefined) {
+    memberToUpdate.name = name;
+  }
+
+  if (gender !== undefined) {
+    memberToUpdate.gender = gender;
+  }
+
+  if (imageUrl !== undefined) {
+    memberToUpdate.img = imageUrl;
+  }
+
+  if (dob !== undefined) {
+    memberToUpdate.dob = dob;
+  }
+
+  // Handle null value for dod separately
+  if (dod !== undefined) {
+    memberToUpdate.dod = dod !== null ? dod : undefined;
+  }
 
   const updatedMember = await memberToUpdate.save();
   console.log(updatedMember);
   res.json(updatedMember);
 });
-
-// exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
-//   const memberId = req.params.id;
-
-//   // Find and delete the member
-//   const deletedMember = await Member.findOneAndDelete({ id: memberId });
-
-//   if (!deletedMember) {
-//     return res.status(404).json({ message: "Member not found" });
-//   }
-
-//   // Delete all other members with the member's id in their mid or fid field
-//   await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
-
-//   res.json({ message: "Member and related members deleted successfully" });
-// });
 
 exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
   const memberId = req.params.id;
