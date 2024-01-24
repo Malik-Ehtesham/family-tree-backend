@@ -476,12 +476,14 @@ exports.updateMember = catchAsync(async (req, res, next) => {
   }
 
   if (dob !== undefined) {
-    memberToUpdate.dob = dob;
+    const convertedValue = dob === "null" ? null : dob;
+    memberToUpdate.dob = convertedValue;
   }
 
   // Handle null value for dod separately
   if (dod !== undefined) {
-    memberToUpdate.dod = dod !== null ? dod : undefined;
+    const convertedValue = dod === "null" ? null : dod;
+    memberToUpdate.dod = convertedValue;
   }
 
   const updatedMember = await memberToUpdate.save();

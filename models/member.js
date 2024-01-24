@@ -37,9 +37,11 @@ const memberSchema = new mongoose.Schema(
     },
     dob: {
       type: Date,
+      default: null,
     },
     dod: {
       type: Date,
+      default: null,
     },
     rootMember: { type: Boolean },
   },
