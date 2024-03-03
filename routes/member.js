@@ -39,4 +39,10 @@ router.delete(
   memberController.deleteMemberAndRelatedMembers
 );
 
+// Route to get a member by invite code
+router.get(
+  "/by-invite-code/:inviteCode",
+  memberController.getMemberByInviteCode
+);
+
 module.exports = router;

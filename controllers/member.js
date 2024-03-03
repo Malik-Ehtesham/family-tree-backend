@@ -1,6 +1,7 @@
 const Member = require("../models/member");
 const catchAsync = require("../utils/catchAsync");
 const cloudinary = require("cloudinary").v2;
+const AppError = require("../utils/appError");
 
 cloudinary.config({
   cloud_name: "dcbjngmhn",
@@ -21,85 +22,6 @@ exports.getAllMembers = catchAsync(async (req, res, next) => {
   res.json(allMembers);
 });
 
-// function transformDataToHierarchy(allMembers) {
-//   const memberMap = new Map();
-
-//   // First pass: Create a mapping of members using their IDs
-//   allMembers.forEach((member) => {
-//     memberMap.set(member._id.toString(), {
-//       name: member.name,
-//       attributes: {
-//         gender: member.gender,
-//       },
-//       spouseId: member.spouseId, // Add spouseId field
-//       children: [], // Initialize children array
-//     });
-//   });
-
-//   // Second pass: Build the hierarchy using the parentId references
-//   const hierarchy = { name: "Root", children: [] };
-
-//   allMembers.forEach((member) => {
-//     const node = memberMap.get(member._id.toString());
-//     const parent = member.parentId
-//       ? memberMap.get(member.parentId.toString())
-//       : hierarchy;
-
-//     if (parent) {
-//       if (member.spouseId) {
-//         // If the member has a spouse, add the spouse next to the member
-//         const spouseNode = memberMap.get(member.spouseId.toString());
-//         parent.children.push(node, spouseNode);
-//       } else {
-//         // If no spouse, add the member as a child of the parent
-//         parent.children.push(node);
-//       }
-//     }
-//   });
-
-//   return hierarchy.children;
-// }
-
-// function transformDataToHierarchy(allMembers) {
-//   const memberMap = new Map();
-
-//   // First pass: Create a mapping of members using their IDs
-//   allMembers.forEach((member) => {
-//     memberMap.set(member._id.toString(), {
-//       name: member.name,
-//       attributes: {
-//         gender: member.gender,
-//         // dateOfBirth: member.dateOfBirth,
-//       },
-//       children: [],
-//     });
-//   });
-
-//   // Second pass: Build the hierarchy using the parentId references
-//   const hierarchy = { name: "Root", children: [] };
-
-//   allMembers.forEach((member) => {
-//     const node = memberMap.get(member._id.toString());
-//     const parent = member.parentId
-//       ? memberMap.get(member.parentId.toString())
-//       : hierarchy;
-
-//     if (parent) {
-//       parent.children.push(node);
-//     }
-//   });
-
-//   return hierarchy.children;
-// }
-
-// exports.getMemberById = catchAsync(async (req, res, next) => {
-//   const member = await Member.findById(req.params.id);
-//   if (!member) {
-//     return res.status(404).json({ message: "Member not found" });
-//   }
-//   res.json(member);
-// });
-
 exports.getMemberById = catchAsync(async (req, res, next) => {
   const id = req.params.id;
 
@@ -112,18 +34,18 @@ exports.getMemberById = catchAsync(async (req, res, next) => {
   res.json(member);
 });
 
-// Check if a member with the same name already exists in the family tree
-// const existingMember = await Member.findOne({ name, familyTreeId });
-
-// if (existingMember) {
-//   return res.status(400).json({
-//     message: "A member with the same name already exists in the family tree.",
-//   });
-// }
-
 exports.createMember = catchAsync(async (req, res, next) => {
-  const { name, gender, rootMember, img, mid, fid, pids, familyTreeId } =
-    req.body;
+  const {
+    name,
+    gender,
+    rootMember,
+    img,
+    mid,
+    fid,
+    pids,
+    familyTreeId,
+    isAdmin,
+  } = req.body;
 
   // CREATING A SPOUSE
 
@@ -137,6 +59,7 @@ exports.createMember = catchAsync(async (req, res, next) => {
     fid,
     pids,
     familyTreeId,
+    isAdmin,
   });
 
   const newMember = await member.save();
@@ -145,18 +68,71 @@ exports.createMember = catchAsync(async (req, res, next) => {
   res.status(201).json({ newMember });
 });
 
-// CREATING A SPOUSE
+// // CREATING A SPOUSE
+// exports.createSpouse = catchAsync(async (req, res, next) => {
+//   const { name, gender, img, familyTreeId } = req.body;
+
+//   // Assuming req.body.pids contains the partner id
+//   const partnerId = req.body.pids;
+//   console.log("PARTNER", partnerId);
+//   // Create the new spouse
+//   const newSpouse = new Member({
+//     name,
+//     gender,
+//     img,
+//     pids: [partnerId], // Add the partner id to the new spouse's pids
+//     familyTreeId,
+//   });
+
+//   const newSpouseDocument = await newSpouse.save();
+
+//   // Fetch the existing spouse
+//   const existingSpouse = await Member.find({ id: partnerId });
+//   console.log("EXISTING", existingSpouse);
+//   // Update the existing spouse's pids to include the new spouse
+//   if (existingSpouse) {
+//     existingSpouse[0].pids.push(newSpouseDocument.id);
+//     await existingSpouse[0].save();
+//   }
+//   res.status(201).json({ newSpouseDocument });
+// });
+
 exports.createSpouse = catchAsync(async (req, res, next) => {
-  const { name, gender, img, familyTreeId } = req.body;
+  const { name, gender, familyTreeId } = req.body;
 
   // Assuming req.body.pids contains the partner id
   const partnerId = req.body.pids;
   console.log("PARTNER", partnerId);
+
+  let imageUrl;
+
+  // Check if an image file is included in the request
+  if (req.files && req.files.img) {
+    try {
+      // Upload the image to Cloudinary
+      const file = req.files.img;
+      imageUrl = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload(file.tempFilePath, (err, result) => {
+          if (err) {
+            console.error(err);
+            reject("Error uploading image to Cloudinary");
+          } else {
+            console.log(result);
+            resolve(result.url);
+          }
+        });
+      });
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: error });
+    }
+  }
+
   // Create the new spouse
   const newSpouse = new Member({
     name,
     gender,
-    img,
+    img: imageUrl, // Assign the Cloudinary image URL to the spouse's img field
     pids: [partnerId], // Add the partner id to the new spouse's pids
     familyTreeId,
   });
@@ -166,11 +142,13 @@ exports.createSpouse = catchAsync(async (req, res, next) => {
   // Fetch the existing spouse
   const existingSpouse = await Member.find({ id: partnerId });
   console.log("EXISTING", existingSpouse);
+
   // Update the existing spouse's pids to include the new spouse
   if (existingSpouse) {
     existingSpouse[0].pids.push(newSpouseDocument.id);
     await existingSpouse[0].save();
   }
+
   res.status(201).json({ newSpouseDocument });
 });
 
@@ -245,8 +223,13 @@ exports.createParents = catchAsync(async (req, res, next) => {
 
 // CREATING A CHILD
 
+// TODO:
+
+// 1. Refactor this function to handle the case when there is also img, dob and dod
+
 exports.createChild = catchAsync(async (req, res, next) => {
-  const { name, gender, motherId, fatherId, familyTreeId } = req.body;
+  const { name, gender, img, dob, dod, motherId, fatherId, familyTreeId } =
+    req.body;
   // Assuming req.body.pids contains the partner id
   const partnerId = req.body?.pids; // This should be parent id tthen we will wind the parent thriugh id then we will check its pidsSArray if array is empty create new spouse if array  is not empty then move to else block
 
@@ -311,14 +294,40 @@ exports.createChild = catchAsync(async (req, res, next) => {
     }
     res.json({ data: childDocument });
   } else {
+    let imageUrl;
+    if (req.files && req.files.img) {
+      try {
+        // Upload the image to Cloudinary
+        const file = req.files.img;
+        imageUrl = await new Promise((resolve, reject) => {
+          cloudinary.uploader.upload(file.tempFilePath, (err, result) => {
+            if (err) {
+              console.error(err);
+              reject("Error uploading image to Cloudinary");
+            } else {
+              console.log(result);
+              resolve(result.url);
+            }
+          });
+        });
+      } catch (error) {
+        console.error(error);
+        return res.status(500).json({ error: error });
+      }
+    }
     const child = new Member({
       name: name,
       gender: gender,
+      img: imageUrl, // Assign the Cloudinary image URL to the child's img field
+      dob,
+      dod,
       mid: motherId,
       fid: fatherId,
       familyTreeId,
     });
-    const childDocument = await child.save();
+
+    const childDocument = await child.save({ validateBeforeSave: false });
+    console.log("BUDDY", childDocument);
     res.json({ data: childDocument });
   }
 });
@@ -494,33 +503,64 @@ exports.updateMember = catchAsync(async (req, res, next) => {
 exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
   const memberId = req.params.id;
 
-  // Step 1: Find and delete the member
-  const deletedMember = await Member.findOneAndDelete({ id: memberId });
+  try {
+    // Step 1: Find and delete the member
+    const deletedMember = await Member.findOneAndDelete({ id: memberId });
 
-  if (!deletedMember) {
-    return res.status(404).json({ message: "Member not found" });
+    if (!deletedMember) {
+      return res.status(404).json({ message: "Member not found" });
+    }
+
+    // Step 2: Delete all other members with the member's id in their mid or fid field
+    await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
+
+    // Step 3: Get the IDs from the pidsArray of the member being deleted
+    const deletedMemberPids = deletedMember.pids;
+    console.log("Deleted Member Pids:", deletedMemberPids);
+
+    // Step 4: Find all members whose pidsArray contains any of these IDs
+    const membersToUpdate = await Member.find({
+      pids: { $elemMatch: { $in: deletedMemberPids } },
+    });
+
+    console.log("Members to Update:", membersToUpdate);
+
+    // Step 5: Remove the ID of the member being deleted from the pidsArray of other members
+    for (const memberToUpdate of membersToUpdate) {
+      console.log("Updating Member:", memberToUpdate);
+      memberToUpdate.pids = memberToUpdate.pids.filter(
+        (pid) => pid !== memberId
+      );
+      await memberToUpdate.save();
+    }
+
+    res.json({ message: "Member and related members deleted successfully" });
+  } catch (error) {
+    // Check if the error is due to attempting to delete an admin member
+    if (error.message === "Admin member cannot be deleted") {
+      return res
+        .status(403)
+        .json({ message: "Admin member cannot be deleted" });
+    }
+    // If it's another type of error, pass it to the error handling middleware
+    next(error);
+  }
+});
+
+// Controller to get a member by matching invite code
+exports.getMemberByInviteCode = catchAsync(async (req, res, next) => {
+  const inviteCode = req.params.inviteCode; // Assuming invite code is passed as a route parameter
+
+  // Query the Member collection to find the member with the matching invite code
+  const member = await Member.findOne({ id: inviteCode });
+
+  if (!member) {
+    return next(new AppError("Member not found with the provided invite code"));
   }
 
-  // Step 2: Delete all other members with the member's id in their mid or fid field
-  await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
+  // If a member is found, retrieve the familyTreeId associated with that member
+  // const familyTreeId = member.familyTreeId;
 
-  // Step 3: Get the IDs from the pidsArray of the member being deleted
-  const deletedMemberPids = deletedMember.pids;
-  console.log("Deleted Member Pids:", deletedMemberPids);
-
-  // Step 4: Find all members whose pidsArray contains any of these IDs
-  const membersToUpdate = await Member.find({
-    pids: { $elemMatch: { $in: deletedMemberPids } },
-  });
-
-  console.log("Members to Update:", membersToUpdate);
-
-  // Step 5: Remove the ID of the member being deleted from the pidsArray of other members
-  for (const memberToUpdate of membersToUpdate) {
-    console.log("Updating Member:", memberToUpdate);
-    memberToUpdate.pids = memberToUpdate.pids.filter((pid) => pid !== memberId);
-    await memberToUpdate.save();
-  }
-
-  res.json({ message: "Member and related members deleted successfully" });
+  // Return the familyTreeId as a response
+  res.json({ member });
 });

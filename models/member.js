@@ -43,6 +43,15 @@ const memberSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    inviteCode: {
+      type: String,
+      unique: true,
+      default: generateInviteCode,
+    },
     rootMember: { type: Boolean },
   },
   { timestamps: true }
@@ -55,6 +64,22 @@ const Member = mongoose.model("Member", memberSchema);
 function generateHexId() {
   return crypto.randomBytes(12).toString("hex"); // Adjust the length as needed
 }
+
+function generateInviteCode() {
+  return crypto.randomBytes(6).toString("hex").toUpperCase();
+}
+
+// Pre-delete hook to prevent deletion of admin member
+memberSchema.pre("deleteOne", function (next) {
+  // Check if the member being deleted is an admin
+  if (this.isAdmin) {
+    const err = new Error("Admin member cannot be deleted");
+    // Prevent deletion by calling next with an error
+    return next(err);
+  }
+  // If not admin, proceed with deletion
+  return next();
+});
 
 // Export the Member model to be used in other parts of your application
 module.exports = Member;
