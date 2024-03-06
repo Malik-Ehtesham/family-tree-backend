@@ -500,41 +500,141 @@ exports.updateMember = catchAsync(async (req, res, next) => {
   res.json(updatedMember);
 });
 
+// exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
+//   const memberId = req.params.id;
+
+//   try {
+//     // Step 1: Find and delete the member
+//     const deletedMember = await Member.findOneAndDelete({ id: memberId });
+
+//     if (!deletedMember) {
+//       return res.status(404).json({ message: "Member not found" });
+//     }
+
+//     // Step 2: Delete all other members with the member's id in their mid or fid field
+//     await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
+
+//     // Step 3: Get the IDs from the pidsArray of the member being deleted
+//     const deletedMemberPids = deletedMember.pids;
+//     console.log("Deleted Member Pids:", deletedMemberPids);
+
+//     // Step 4: Find all members whose pidsArray contains any of these IDs
+//     const membersToUpdate = await Member.find({
+//       pids: { $elemMatch: { $in: deletedMemberPids } },
+//     });
+
+//     console.log("Members to Update:", membersToUpdate);
+
+//     // Step 5: Remove the ID of the member being deleted from the pidsArray of other members
+//     for (const memberToUpdate of membersToUpdate) {
+//       console.log("Updating Member:", memberToUpdate);
+//       memberToUpdate.pids = memberToUpdate.pids.filter(
+//         (pid) => pid !== memberId
+//       );
+//       await memberToUpdate.save();
+//     }
+
+//     res.json({ message: "Member and related members deleted successfully" });
+//   } catch (error) {
+//     // Check if the error is due to attempting to delete an admin member
+//     if (error.message === "Admin member cannot be deleted") {
+//       return res
+//         .status(403)
+//         .json({ message: "Admin member cannot be deleted" });
+//     }
+//     // If it's another type of error, pass it to the error handling middleware
+//     next(error);
+//   }
+// });
+
+// exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
+//   const memberId = req.params.id;
+
+//   try {
+//     // Step 1: Find the member
+//     const member = await Member.findOne({ id: memberId });
+
+//     // if (!member) {
+//     //   return res.status(404).json({ message: "Member not found" });
+//     // }
+
+//     // // Check if the member is an admin
+//     // if (member.isAdmin) {
+//     //   return res
+//     //     .status(403)
+//     //     .json({ message: "Admin member cannot be deleted" });
+//     // }
+
+//     // Step 2: Delete the member
+//     const deletedMember = await Member.findOneAndDelete({ id: memberId });
+
+//     // Step 3: Delete all other members with the member's id in their mid or fid field
+//     // await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
+
+//     // Step 4: Get the IDs from the pidsArray of the member being deleted
+//     // const deletedMemberPids = deletedMember.pids;
+//     // console.log("Deleted Member Pids:", deletedMemberPids);
+
+//     // Step 5: Find all members whose pidsArray contains any of these IDs
+//     // const membersToUpdate = await Member.find({
+//     // pids: { $elemMatch: { $in: deletedMemberPids } },
+//     // });
+
+//     // console.log("Members to Update:", membersToUpdate);
+
+//     // Step 6: Remove the ID of the member being deleted from the pidsArray of other members
+//     // for (const memberToUpdate of membersToUpdate) {
+//     // console.log("Updating Member:", memberToUpdate);
+//     // memberToUpdate.pids = memberToUpdate.pids.filter(
+//     // (pid) => pid !== memberId
+//     // );
+//     // await memberToUpdate.save();
+//     // }
+
+//     res.json({ message: "Member  deleted successfully" });
+//   } catch (error) {
+//     // Check if the error is due to attempting to delete an admin member
+//     if (error.message === "Admin member cannot be deleted") {
+//       return res
+//         .status(403)
+//         .json({ message: "Admin member cannot be deleted" });
+//     }
+//     // If it's another type of error, pass it to the error handling middleware
+//     next(error);
+//   }
+// });
+
 exports.deleteMemberAndRelatedMembers = catchAsync(async (req, res, next) => {
   const memberId = req.params.id;
 
   try {
-    // Step 1: Find and delete the member
-    const deletedMember = await Member.findOneAndDelete({ id: memberId });
+    // Step 1: Find the member
+    const member = await Member.findOne({ id: memberId });
 
-    if (!deletedMember) {
+    if (!member) {
       return res.status(404).json({ message: "Member not found" });
     }
 
-    // Step 2: Delete all other members with the member's id in their mid or fid field
-    await Member.deleteMany({ $or: [{ mid: memberId }, { fid: memberId }] });
-
-    // Step 3: Get the IDs from the pidsArray of the member being deleted
-    const deletedMemberPids = deletedMember.pids;
-    console.log("Deleted Member Pids:", deletedMemberPids);
-
-    // Step 4: Find all members whose pidsArray contains any of these IDs
-    const membersToUpdate = await Member.find({
-      pids: { $elemMatch: { $in: deletedMemberPids } },
-    });
-
-    console.log("Members to Update:", membersToUpdate);
-
-    // Step 5: Remove the ID of the member being deleted from the pidsArray of other members
-    for (const memberToUpdate of membersToUpdate) {
-      console.log("Updating Member:", memberToUpdate);
-      memberToUpdate.pids = memberToUpdate.pids.filter(
-        (pid) => pid !== memberId
-      );
-      await memberToUpdate.save();
+    // Check if the member is an admin
+    if (member.isAdmin) {
+      return res
+        .status(403)
+        .json({ message: "Admin member cannot be deleted" });
     }
 
-    res.json({ message: "Member and related members deleted successfully" });
+    // Step 2: Remove the member's id from the fids of all members
+    await Member.updateMany({ fid: memberId }, { fid: null });
+
+    // Step 3: Remove the member's id from the mids of all members
+    await Member.updateMany({ mid: memberId }, { mid: null });
+
+    // Step 4: Remove the member's id from the pids of all members
+    await Member.updateMany({ pids: memberId }, { $pull: { pids: memberId } });
+
+    // Step 5: Delete the member
+    await Member.findOneAndDelete({ id: memberId });
+
+    res.json({ message: "Member and related references deleted successfully" });
   } catch (error) {
     // Check if the error is due to attempting to delete an admin member
     if (error.message === "Admin member cannot be deleted") {
