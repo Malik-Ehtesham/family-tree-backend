@@ -19,6 +19,9 @@ const memberSchema = new mongoose.Schema(
       default:
         "https://res.cloudinary.com/dcbjngmhn/image/upload/v1705896821/khetjahfr6je689ok4m9.jpg",
     },
+    familyName: {
+      type: String,
+    },
     pids: {
       type: [String],
     },
