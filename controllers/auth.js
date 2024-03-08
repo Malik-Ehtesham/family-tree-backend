@@ -167,7 +167,7 @@ exports.forgotPassword = catchAsync(async (req, res, next) => {
   //   "host"
   // )}/api/users/resetPassword/${resetToken}`;
 
-  // RESETURL http://localhost:5173/forgotPassword
+  // RESETURL https://family-tree-frontend-self.vercel.app/forgotPassword
 
   const resetURL = `${req.protocol}://family-tree-frontend-self.vercel.app/resetPassword/${resetToken}`;
 
